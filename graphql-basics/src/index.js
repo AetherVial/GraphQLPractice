@@ -1,4 +1,5 @@
 import { GraphQLServer } from 'graphql-yoga';
+import UUID from 'uuid/v4';
 
 // Type Definitions (schema)
 // String, Boolean, Int, Float,  ID
@@ -9,6 +10,12 @@ const typeDefs = `
         post: Post!
         users(query: String): [User!]!
         posts(query: String): [Post!]!
+        comments(query: String): [Comment!]!
+    }
+
+    type Mutation {
+        createUser(name: String!, email: String!, age: Int): User!
+
     }
 
     type User {
@@ -16,6 +23,8 @@ const typeDefs = `
         name: String!
         email: String!
         age: Int
+        posts: [Post]
+        comments: [Comment]
     }
 
     type Post {
@@ -23,6 +32,15 @@ const typeDefs = `
         title: String!
         body: String!
         published: Boolean!
+        author: User!
+        comments: [Comment]
+    }
+
+    type Comment {
+        id: ID!
+        text: String!
+        author: User!
+        post: Post!
     }
 `
 const users = [{
@@ -43,17 +61,42 @@ const posts = [{
     id: '1',
     title: 'Post1',
     body: 'Graph',
-    published: true
+    published: true,
+    author: '1'
 }, {
     id: '2',
     title: 'Post2',
     body: 'QL',
-    published: true
+    published: true,
+    author: '1'
 }, {
     id: '3',
     title: 'Post3',
     body: 'is so cool',
-    published: false
+    published: false,
+    author: '2'
+}]
+
+const comments = [{
+    id: '1',
+    text: 'wow',
+    author: '1',
+    post: '1'
+}, {
+    id: '2',
+    text: 'fuck',
+    author: '1',
+    post: '1'
+}, {
+    id: '3',
+    text: 'tron',
+    author: '1',
+    post: '1'
+}, {
+    id: '4',
+    text: '!',
+    author: '1',
+    post: '1'
 }]
 
 // Resolvers
@@ -85,6 +128,55 @@ const resolvers = {
                 return isTitleMatch || isBodyMatch
             })
         }, // resolver func takes in parent, args, context (contextual data), info 
+        comments(parent, args, ctx, info) {
+            if (!args.query) {
+                return comments
+            }
+            return posts.filter(comment => {
+                const isTextMatch = comment.text.toLowerCase().includes(args.query.toLowerCase)
+                const isIDMatch = comment.id.includes(args.query)
+                return isIDMatch || isTextMatch
+            })
+        }
+    },
+    Mutation: {
+        createUser(parent, args, ctx, info) {
+            const emailTaken = users.some(user => user.email === args.email)
+            if (emailTaken) {
+                throw new Error('Email is taken.')
+            }
+
+            const user = {
+                id: UUID(),
+                name: args.name,
+                email: args.email,
+                age: args.age
+            }
+
+            users.push(user)
+            return user
+        }
+    },
+    Post: {
+        author(parent, args, ctx, info) {
+           return users.find(user => (user.id === parent.author));
+        }
+    },
+    User: {
+        posts(parent, args, ctx, info) {
+            return posts.filter(post => (post.author === parent.id))
+        },
+        comments(parent, args, ctx, info) {
+            return comments.filter(comment => (comment.author === parent.id))
+        }
+    },
+    Comment: {
+        author(parent, args, ctx, info) {
+            return users.find(user => (user.id === parent.author))
+        },
+        post(parent, args, ctx, info) {
+            return posts.find(post => (post.id === parent.post))
+        }
     }
 }
 
