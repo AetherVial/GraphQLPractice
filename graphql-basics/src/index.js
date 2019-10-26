@@ -14,8 +14,15 @@ const typeDefs = `
     }
 
     type Mutation {
-        createUser(name: String!, email: String!, age: Int): User!
+        createUser(user: CreateUserInput): User!
+        createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
+        createComment(text: String!, author: ID!, post: ID!): Comment!
+    }
 
+    input CreateUserInput {
+        name: String!
+        email: String!
+        age: Int
     }
 
     type User {
@@ -141,20 +148,52 @@ const resolvers = {
     },
     Mutation: {
         createUser(parent, args, ctx, info) {
-            const emailTaken = users.some(user => user.email === args.email)
+            const emailTaken = users.some(user => user.email === args.data.email)
             if (emailTaken) {
                 throw new Error('Email is taken.')
             }
 
             const user = {
                 id: UUID(),
-                name: args.name,
-                email: args.email,
-                age: args.age
+                ...args.data
             }
 
             users.push(user)
             return user
+        },
+        createPost(parent, args, ctx, info) {
+            const userExists = users.some(user => user.id === args.author);
+            if (!userExists) {
+                throw new Error('user not found')
+            } 
+
+            const post = {
+                id: UUID(),
+                ...args
+            }
+
+            posts.push(post)
+            return post
+        },
+        createComment(parent, args, ctx, info) {
+            const userExists = users.some(user => user.id === args.author);
+            const postExists = posts.some(post => post.id === args.post);
+
+            if (!userExists) {
+                throw new Error('user not found')
+            } else if (!postExists) {
+                throw new Error('post not found')
+            }
+
+
+
+            const comment = {
+                id: UUID(),
+                ...args
+            }
+
+            comments.push(comment);
+            return comment;
         }
     },
     Post: {
