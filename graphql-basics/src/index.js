@@ -15,6 +15,7 @@ const typeDefs = `
 
     type Mutation {
         createUser(user: CreateUserInput): User!
+        deleteUser(id: ID!): User!
         createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
         createComment(text: String!, author: ID!, post: ID!): Comment!
     }
@@ -50,7 +51,7 @@ const typeDefs = `
         post: Post!
     }
 `
-const users = [{
+let users = [{
     id: '1',
     name: 'Andrew',
     email: 'andrew@andrew.com'
@@ -64,7 +65,7 @@ const users = [{
     email: 'wesley@yahoo.com'
 }]
 
-const posts = [{
+let posts = [{
     id: '1',
     title: 'Post1',
     body: 'Graph',
@@ -84,7 +85,7 @@ const posts = [{
     author: '2'
 }]
 
-const comments = [{
+let comments = [{
     id: '1',
     text: 'wow',
     author: '1',
@@ -161,6 +162,29 @@ const resolvers = {
             users.push(user)
             return user
         },
+        deleteUser(parent, args, ctx, info) {
+            const userIndex = users.findIndex(() => {
+                return user.id === args.id
+            })
+
+            if (userIndex === - 1) {
+                throw new Error('user not found')
+            }
+
+            const deletedUsers = users = users.splice(userIndex, 1);
+
+            posts = posts.filter(post => {
+                const match = post.author === args.id
+                if (match) {
+                    comments = comments.filter((comment) => {
+                        return comment.post !== post.id
+                    })
+                }
+                return !match
+            })
+            comments = comments.filter((comment) => comment.author !== args.id)
+            return deletedUsers
+        },
         createPost(parent, args, ctx, info) {
             const userExists = users.some(user => user.id === args.author);
             if (!userExists) {
@@ -184,8 +208,6 @@ const resolvers = {
             } else if (!postExists) {
                 throw new Error('post not found')
             }
-
-
 
             const comment = {
                 id: UUID(),
